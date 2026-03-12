@@ -17,12 +17,7 @@ on:
         default: "deploy"
         type: choice
         options: [deploy, destroy]
-      environment:
-        description: "Target environment"
-        required: true
-        default: "production"
-        type: choice
-        options: [production, staging]
+
 
 env:
   IMAGE_NAME: cicd-aws-terraform-deploy
