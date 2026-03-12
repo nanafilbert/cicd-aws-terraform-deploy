@@ -5,7 +5,7 @@ terraform {
   }
 
   backend "s3" {
-    bucket         = "production-ready-devops-tfstate"
+    bucket         = "cicd-aws-terraform-deploy-tfstate-filbert"
     key            = "prod/terraform.tfstate"
     region         = "us-east-1"
     encrypt        = true
