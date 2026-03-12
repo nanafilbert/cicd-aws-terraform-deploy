@@ -302,7 +302,7 @@ jobs:
          echo "❌ App failed health check after 6 minutes"
          exit 1
 
-         
+  destroy:
       - name: Terraform Destroy
         runs-on: ubuntu-latest
         if: github.event_name == 'workflow_dispatch' && github.event.inputs.action == 'destroy'
