@@ -1,7 +1,7 @@
 # ════════════════════════════════════════════════════════════════
 # Stage 1 — deps: install production dependencies only
 # ════════════════════════════════════════════════════════════════
-FROM node:20-alpine AS deps
+FROM node:20-alpine3.21 AS deps
 
 WORKDIR /app
 
@@ -16,7 +16,7 @@ RUN npm ci --omit=dev && \
 # ════════════════════════════════════════════════════════════════
 # Stage 2 — test: run tests in CI (not included in final image)
 # ════════════════════════════════════════════════════════════════
-FROM node:20-alpine AS test
+FROM node:20-alpine3.21 AS test
 
 WORKDIR /app
 
@@ -30,7 +30,7 @@ RUN npm test -- --ci --forceExit
 # ════════════════════════════════════════════════════════════════
 # Stage 3 — production: minimal, hardened runtime image
 # ════════════════════════════════════════════════════════════════
-FROM node:20-alpine AS production
+FROM node:20-alpine3.21 AS production
 
 # Security: run as non-root
 RUN addgroup -g 1001 -S nodejs && \
