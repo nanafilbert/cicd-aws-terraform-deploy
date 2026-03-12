@@ -15,7 +15,7 @@ on:
         options: [production, staging]
 
 env:
-  IMAGE_NAME: production-ready-devops
+  IMAGE_NAME: cicd-aws-terraform-deploy
   NODE_VERSION: "20"
   TERRAFORM_VERSION: "1.7.0"
 
@@ -162,14 +162,19 @@ jobs:
     if: github.ref == 'refs/heads/main'
     environment: production-plan
 
+    # Required for OIDC token request
+    permissions:
+      id-token: write
+      contents: read
+
     steps:
       - uses: actions/checkout@v4
 
       - uses: aws-actions/configure-aws-credentials@v4
         with:
-          aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
-          aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+          role-to-assume: ${{ secrets.AWS_ROLE_ARN }}
           aws-region: ${{ secrets.AWS_REGION }}
+          role-session-name: GitHubActions-Plan-${{ github.run_id }}
 
       - uses: hashicorp/setup-terraform@v3
         with:
@@ -226,14 +231,19 @@ jobs:
     if: github.ref == 'refs/heads/main'
     environment: production
 
+    # Required for OIDC token request
+    permissions:
+      id-token: write
+      contents: read
+
     steps:
       - uses: actions/checkout@v4
 
       - uses: aws-actions/configure-aws-credentials@v4
         with:
-          aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
-          aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+          role-to-assume: ${{ secrets.AWS_ROLE_ARN }}
           aws-region: ${{ secrets.AWS_REGION }}
+          role-session-name: GitHubActions-Deploy-${{ github.run_id }}
 
       - uses: hashicorp/setup-terraform@v3
         with:
