@@ -203,6 +203,16 @@ jobs:
             -out=tfplan \
             -no-color 2>&1 | tee plan_output.txt
 
+      - name: release state lock on failure
+        if: failure()
+        working-directory: terraform/envs/prod
+        run: |
+          LOCK_ID=$(grep -o '"ID": *"[^"]*"' plan_output.txt | head -1 | cut -d'"' -f4)
+          if [ -n "$LOCK_ID" ]; then
+            echo "Releasing lock: $LOCK_ID"
+            terraform force-unlock -force "$LOCK_ID"
+          fi
+
       - name: Upload plan
         uses: actions/upload-artifact@v4
         with:
