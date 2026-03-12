@@ -182,7 +182,10 @@ resource "aws_iam_policy" "github_actions" {
           "iam:PassRole", "iam:ListRolePolicies",
           "iam:ListAttachedRolePolicies", "iam:TagRole", "iam:UntagRole",
           "iam:CreatePolicy", "iam:DeletePolicy", "iam:GetPolicy",
-          "iam:GetPolicyVersion", "iam:ListPolicyVersions"
+          "iam:GetPolicyVersion",
+           "iam:ListPolicyVersions",
+          "iam:TagInstanceProfile",
+          "iam:CreateServiceLinkedRole"
         ]
         Resource = "*"
       },
