@@ -1,12 +1,27 @@
-# Terraform
-*.tfvars
-*.tfvars.json
-*.tfstate
-*.tfstate.backup
-.terraform/
-.terraform.lock.hcl
-crash.log
+# ── Node ──────────────────────────────────────────────────────
+node_modules/
+coverage/
+dist/
+*.log
 
-# Environment
+# ── Environment ───────────────────────────────────────────────
 .env
 .env.*
+!.env.example
+
+# ── Terraform ─────────────────────────────────────────────────
+**/*.tfvars
+**/*.tfvars.json
+**/*.tfstate
+**/*.tfstate.backup
+**/.terraform/
+**/.terraform.lock.hcl
+**/crash.log
+**/tfplan
+
+# Exception — keep the example file
+!terraform.tfvars.example
+
+# ── OS ────────────────────────────────────────────────────────
+.DS_Store
+Thumbs.db
