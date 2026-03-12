@@ -3,10 +3,20 @@ name: CI/CD Pipeline
 on:
   push:
     branches: [main, develop]
+    paths-ignore:
+      - 'README.md'
   pull_request:
     branches: [main]
+    paths-ignore:
+      - 'README.md'
   workflow_dispatch:
     inputs:
+      action:
+        description: "Action to perform"
+        required: true
+        default: "deploy"
+        type: choice
+        options: [deploy, destroy]
       environment:
         description: "Target environment"
         required: true
@@ -135,12 +145,14 @@ jobs:
         uses: docker/build-push-action@v5
         with:
           context: app
+          file: app/Dockerfile
           push: true
           target: production
           tags: ${{ steps.meta.outputs.tags }}
           labels: ${{ steps.meta.outputs.labels }}
           cache-from: type=gha
           cache-to: type=gha,mode=max
+          no-cache: true
           build-args: |
             APP_VERSION=${{ github.sha }}
           provenance: true
@@ -294,6 +306,38 @@ jobs:
          done
          echo "❌ App failed health check after 6 minutes"
          exit 1
+
+         
+      - name: Terraform Destroy
+        runs-on: ubuntu-latest
+        if: github.event_name == 'workflow_dispatch' && github.event.inputs.action == 'destroy'
+        steps:
+      - uses: actions/checkout@v4
+
+      - name: Configure AWS credentials
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          role-to-assume: ${{ secrets.AWS_ROLE_ARN }}
+          aws-region: ${{ secrets.AWS_REGION }}
+          role-session-name: GitHubActions-Destroy-${{ github.run_id }}
+
+      - name: Setup Terraform
+        uses: hashicorp/setup-terraform@v3
+        with:
+          terraform_version: ${{ env.TERRAFORM_VERSION }}
+
+      - name: Terraform Init
+        working-directory: terraform/envs/prod
+        run: terraform init
+
+      - name: Terraform Destroy
+        working-directory: terraform/envs/prod
+        run: |
+          terraform destroy \
+            -var="key_pair_name=${{ secrets.TF_VAR_KEY_PAIR_NAME }}" \
+            -var="dockerhub_username=${{ secrets.DOCKERHUB_USERNAME }}" \
+            -auto-approve \
+            -no-color
 
   # ── 7. Pipeline Summary ─────────────────────────────────────
   summary:
