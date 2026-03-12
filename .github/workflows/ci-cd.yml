@@ -223,7 +223,7 @@ jobs:
               body: `## Terraform Plan\n\`\`\`\n${plan.slice(0, 65000)}\n\`\`\``
             });
 
-  # ── 6. Deploy ───────────────────────────────────────────────
+  # ── 6. Deploy ──.─────────────────────────────────────────────
   deploy:
     name: 🚀 Deploy
     runs-on: ubuntu-latest
