@@ -23,7 +23,7 @@ env:
   NODE_VERSION: "20"
   TERRAFORM_VERSION: "1.7.0"
 
-# Prevent concurrent deploys to same environment
+# Prevent concurrent deploys to same environment.
 concurrency:
   group: ${{ github.workflow }}-${{ github.ref }}
   cancel-in-progress: false
