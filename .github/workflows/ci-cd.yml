@@ -272,14 +272,7 @@ jobs:
 
       - name: Terraform Apply
         working-directory: terraform/envs/prod
-        run: |
-          terraform apply \
-            -var="app_version=${{ needs.build.outputs.image_tag }}" \
-            -var="dockerhub_username=${{ secrets.DOCKERHUB_USERNAME }}" \
-            -var="key_pair_name=${{ secrets.TF_VAR_KEY_PAIR_NAME }}" \
-            -auto-approve tfplan \
-            -no-color 2>&1 | tee plan_output.txt
-
+        run: terraform apply -auto-approve tfplan
       - name: Get deployment URL
         id: output
         working-directory: terraform/envs/prod
