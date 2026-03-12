@@ -18,13 +18,12 @@ on:
         type: choice
         options: [deploy, destroy]
 
-
 env:
   IMAGE_NAME: cicd-aws-terraform-deploy
   NODE_VERSION: "20"
   TERRAFORM_VERSION: "1.7.0"
 
-# Prevent concurrent deploys to same environment..
+# Prevent concurrent deploys to same environment
 concurrency:
   group: ${{ github.workflow }}-${{ github.ref }}
   cancel-in-progress: false
@@ -151,7 +150,7 @@ jobs:
           build-args: |
             APP_VERSION=${{ github.sha }}
           provenance: true
-          sbom: true  # Generate Software Bill of Materials
+          sbom: true
 
       - name: Scan built image for vulnerabilities
         uses: aquasecurity/trivy-action@master
@@ -168,8 +167,6 @@ jobs:
     needs: build
     if: github.ref == 'refs/heads/main'
     environment: production-plan
-
-    # Required for OIDC token request
     permissions:
       id-token: write
       contents: read
@@ -210,7 +207,7 @@ jobs:
             -out=tfplan \
             -no-color 2>&1 | tee plan_output.txt
 
-      - name: release state lock on failure
+      - name: Release state lock on failure
         if: failure()
         working-directory: terraform/envs/prod
         run: |
@@ -248,8 +245,6 @@ jobs:
     needs: [build, plan]
     if: github.ref == 'refs/heads/main'
     environment: production
-
-    # Required for OIDC token request
     permissions:
       id-token: write
       contents: read
@@ -280,6 +275,7 @@ jobs:
       - name: Terraform Apply
         working-directory: terraform/envs/prod
         run: terraform apply -auto-approve tfplan
+
       - name: Get deployment URL
         id: output
         working-directory: terraform/envs/prod
@@ -289,35 +285,38 @@ jobs:
 
       - name: Smoke test — wait for healthy response
         run: |
-         echo "Waiting for app to become healthy..."
-         for i in {1..24}; do
-           STATUS=$(curl -s -o /dev/null -w "%{http_code}" ${{ steps.output.outputs.health_url }} || echo "000")
-           if [ "$STATUS" = "200" ]; then
-             echo "✅ App is healthy!"
-             exit 0
-           fi
-           echo "Attempt $i: got $STATUS — retrying in 15s..."
-           sleep 15
-         done
-         echo "❌ App failed health check after 6 minutes"
-         exit 1
+          echo "Waiting for app to become healthy..."
+          for i in {1..24}; do
+            STATUS=$(curl -s -o /dev/null -w "%{http_code}" ${{ steps.output.outputs.health_url }} || echo "000")
+            if [ "$STATUS" = "200" ]; then
+              echo "✅ App is healthy!"
+              exit 0
+            fi
+            echo "Attempt $i: got $STATUS — retrying in 15s..."
+            sleep 15
+          done
+          echo "❌ App failed health check after 6 minutes"
+          exit 1
 
+  # ── 7. Destroy ──────────────────────────────────────────────
   destroy:
-      - name: Terraform Destroy
-        runs-on: ubuntu-latest
-        if: github.event_name == 'workflow_dispatch' && github.event.inputs.action == 'destroy'
-        steps:
+    name: 💣 Terraform Destroy
+    runs-on: ubuntu-latest
+    if: github.event_name == 'workflow_dispatch' && github.event.inputs.action == 'destroy'
+    permissions:
+      id-token: write
+      contents: read
+
+    steps:
       - uses: actions/checkout@v4
 
-      - name: Configure AWS credentials
-        uses: aws-actions/configure-aws-credentials@v4
+      - uses: aws-actions/configure-aws-credentials@v4
         with:
           role-to-assume: ${{ secrets.AWS_ROLE_ARN }}
           aws-region: ${{ secrets.AWS_REGION }}
           role-session-name: GitHubActions-Destroy-${{ github.run_id }}
 
-      - name: Setup Terraform
-        uses: hashicorp/setup-terraform@v3
+      - uses: hashicorp/setup-terraform@v3
         with:
           terraform_version: ${{ env.TERRAFORM_VERSION }}
 
@@ -334,7 +333,7 @@ jobs:
             -auto-approve \
             -no-color
 
-  # ── 7. Pipeline Summary ─────────────────────────────────────
+  # ── 8. Pipeline Summary ─────────────────────────────────────
   summary:
     name: 📊 Summary
     runs-on: ubuntu-latest
