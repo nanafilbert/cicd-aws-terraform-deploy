@@ -1,0 +1,696 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>TaskFlow — Production Task Manager</title>
+  <link href="https://fonts.googleapis.com/css2?family=Syne:wght@400;600;700;800&family=DM+Mono:wght@300;400;500&display=swap" rel="stylesheet" />
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+    :root {
+      --bg: #0a0a0f;
+      --surface: #111118;
+      --surface2: #1a1a24;
+      --border: #2a2a3a;
+      --accent: #6c63ff;
+      --accent2: #ff6584;
+      --accent3: #43e97b;
+      --text: #e8e8f0;
+      --muted: #6b6b80;
+      --todo: #6c63ff;
+      --inprog: #f9ca24;
+      --done: #43e97b;
+    }
+
+    body {
+      font-family: 'DM Mono', monospace;
+      background: var(--bg);
+      color: var(--text);
+      min-height: 100vh;
+      overflow-x: hidden;
+    }
+
+    /* Background grid */
+    body::before {
+      content: '';
+      position: fixed;
+      inset: 0;
+      background-image:
+        linear-gradient(rgba(108,99,255,0.03) 1px, transparent 1px),
+        linear-gradient(90deg, rgba(108,99,255,0.03) 1px, transparent 1px);
+      background-size: 40px 40px;
+      pointer-events: none;
+      z-index: 0;
+    }
+
+    header {
+      position: relative;
+      z-index: 10;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 1.5rem 2.5rem;
+      border-bottom: 1px solid var(--border);
+      background: rgba(10,10,15,0.8);
+      backdrop-filter: blur(12px);
+    }
+
+    .logo {
+      font-family: 'Syne', sans-serif;
+      font-weight: 800;
+      font-size: 1.4rem;
+      letter-spacing: -0.02em;
+      display: flex;
+      align-items: center;
+      gap: 0.5rem;
+    }
+
+    .logo-dot {
+      width: 8px; height: 8px;
+      background: var(--accent);
+      border-radius: 50%;
+      box-shadow: 0 0 12px var(--accent);
+      animation: pulse 2s ease-in-out infinite;
+    }
+
+    @keyframes pulse {
+      0%, 100% { opacity: 1; transform: scale(1); }
+      50% { opacity: 0.5; transform: scale(0.8); }
+    }
+
+    .header-right {
+      display: flex;
+      align-items: center;
+      gap: 1rem;
+    }
+
+    .status-badge {
+      display: flex;
+      align-items: center;
+      gap: 0.4rem;
+      font-size: 0.7rem;
+      color: var(--accent3);
+      background: rgba(67,233,123,0.1);
+      border: 1px solid rgba(67,233,123,0.2);
+      padding: 0.3rem 0.8rem;
+      border-radius: 100px;
+      letter-spacing: 0.05em;
+    }
+
+    .status-dot {
+      width: 6px; height: 6px;
+      background: var(--accent3);
+      border-radius: 50%;
+      animation: pulse 1.5s ease-in-out infinite;
+    }
+
+    .btn {
+      font-family: 'DM Mono', monospace;
+      font-size: 0.75rem;
+      font-weight: 500;
+      padding: 0.5rem 1.2rem;
+      border-radius: 6px;
+      border: none;
+      cursor: pointer;
+      transition: all 0.15s ease;
+      letter-spacing: 0.03em;
+    }
+
+    .btn-primary {
+      background: var(--accent);
+      color: white;
+    }
+
+    .btn-primary:hover {
+      background: #7c74ff;
+      transform: translateY(-1px);
+      box-shadow: 0 4px 20px rgba(108,99,255,0.4);
+    }
+
+    .btn-ghost {
+      background: transparent;
+      color: var(--muted);
+      border: 1px solid var(--border);
+    }
+
+    .btn-ghost:hover {
+      color: var(--text);
+      border-color: var(--accent);
+    }
+
+    main {
+      position: relative;
+      z-index: 1;
+      padding: 2rem 2.5rem;
+      max-width: 1400px;
+      margin: 0 auto;
+    }
+
+    .board-header {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      margin-bottom: 2rem;
+    }
+
+    .board-title {
+      font-family: 'Syne', sans-serif;
+      font-size: 1.8rem;
+      font-weight: 700;
+      letter-spacing: -0.03em;
+    }
+
+    .board-title span {
+      color: var(--accent);
+    }
+
+    .stats-bar {
+      display: flex;
+      gap: 1.5rem;
+      margin-bottom: 2rem;
+      flex-wrap: wrap;
+    }
+
+    .stat {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: 10px;
+      padding: 1rem 1.5rem;
+      min-width: 140px;
+      transition: border-color 0.2s;
+    }
+
+    .stat:hover { border-color: var(--accent); }
+
+    .stat-value {
+      font-family: 'Syne', sans-serif;
+      font-size: 2rem;
+      font-weight: 800;
+      line-height: 1;
+      margin-bottom: 0.25rem;
+    }
+
+    .stat-label {
+      font-size: 0.65rem;
+      color: var(--muted);
+      letter-spacing: 0.08em;
+      text-transform: uppercase;
+    }
+
+    .board {
+      display: grid;
+      grid-template-columns: repeat(3, 1fr);
+      gap: 1.5rem;
+    }
+
+    @media (max-width: 900px) {
+      .board { grid-template-columns: 1fr; }
+    }
+
+    .column {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: 12px;
+      overflow: hidden;
+      animation: slideUp 0.4s ease both;
+    }
+
+    .column:nth-child(1) { animation-delay: 0.05s; }
+    .column:nth-child(2) { animation-delay: 0.1s; }
+    .column:nth-child(3) { animation-delay: 0.15s; }
+
+    @keyframes slideUp {
+      from { opacity: 0; transform: translateY(20px); }
+      to { opacity: 1; transform: translateY(0); }
+    }
+
+    .column-header {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 1rem 1.25rem;
+      border-bottom: 1px solid var(--border);
+    }
+
+    .column-title {
+      font-family: 'Syne', sans-serif;
+      font-size: 0.8rem;
+      font-weight: 700;
+      letter-spacing: 0.1em;
+      text-transform: uppercase;
+      display: flex;
+      align-items: center;
+      gap: 0.5rem;
+    }
+
+    .col-indicator {
+      width: 8px; height: 8px;
+      border-radius: 50%;
+    }
+
+    .col-todo .col-indicator { background: var(--todo); }
+    .col-inprog .col-indicator { background: var(--inprog); }
+    .col-done .col-indicator { background: var(--done); }
+
+    .col-count {
+      font-size: 0.7rem;
+      color: var(--muted);
+      background: var(--surface2);
+      padding: 0.15rem 0.5rem;
+      border-radius: 100px;
+    }
+
+    .cards {
+      padding: 1rem;
+      min-height: 300px;
+      display: flex;
+      flex-direction: column;
+      gap: 0.75rem;
+    }
+
+    .card {
+      background: var(--surface2);
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      padding: 1rem;
+      cursor: pointer;
+      transition: all 0.15s ease;
+      position: relative;
+      overflow: hidden;
+    }
+
+    .card::before {
+      content: '';
+      position: absolute;
+      left: 0; top: 0; bottom: 0;
+      width: 3px;
+      border-radius: 3px 0 0 3px;
+    }
+
+    .col-todo .card::before { background: var(--todo); }
+    .col-inprog .card::before { background: var(--inprog); }
+    .col-done .card::before { background: var(--done); }
+
+    .card:hover {
+      border-color: var(--accent);
+      transform: translateY(-2px);
+      box-shadow: 0 8px 24px rgba(0,0,0,0.3);
+    }
+
+    .card-title {
+      font-family: 'Syne', sans-serif;
+      font-size: 0.85rem;
+      font-weight: 600;
+      margin-bottom: 0.4rem;
+      line-height: 1.3;
+    }
+
+    .card-desc {
+      font-size: 0.7rem;
+      color: var(--muted);
+      line-height: 1.5;
+      margin-bottom: 0.75rem;
+    }
+
+    .card-footer {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+    }
+
+    .priority {
+      font-size: 0.6rem;
+      letter-spacing: 0.08em;
+      text-transform: uppercase;
+      padding: 0.2rem 0.5rem;
+      border-radius: 4px;
+      font-weight: 500;
+    }
+
+    .priority-high { background: rgba(255,101,132,0.15); color: var(--accent2); }
+    .priority-medium { background: rgba(249,202,36,0.15); color: var(--inprog); }
+    .priority-low { background: rgba(67,233,123,0.15); color: var(--done); }
+
+    .card-id {
+      font-size: 0.6rem;
+      color: var(--muted);
+      font-family: 'DM Mono', monospace;
+    }
+
+    .empty-state {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      padding: 2rem;
+      color: var(--muted);
+      font-size: 0.75rem;
+      text-align: center;
+      gap: 0.5rem;
+      min-height: 150px;
+    }
+
+    .empty-icon { font-size: 1.5rem; opacity: 0.3; }
+
+    /* Modal */
+    .modal-overlay {
+      display: none;
+      position: fixed;
+      inset: 0;
+      background: rgba(0,0,0,0.7);
+      backdrop-filter: blur(4px);
+      z-index: 100;
+      align-items: center;
+      justify-content: center;
+    }
+
+    .modal-overlay.open { display: flex; }
+
+    .modal {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: 16px;
+      padding: 2rem;
+      width: 480px;
+      max-width: 90vw;
+      animation: modalIn 0.2s ease;
+    }
+
+    @keyframes modalIn {
+      from { opacity: 0; transform: scale(0.95); }
+      to { opacity: 1; transform: scale(1); }
+    }
+
+    .modal-title {
+      font-family: 'Syne', sans-serif;
+      font-size: 1.1rem;
+      font-weight: 700;
+      margin-bottom: 1.5rem;
+    }
+
+    .form-group {
+      margin-bottom: 1rem;
+    }
+
+    label {
+      display: block;
+      font-size: 0.65rem;
+      color: var(--muted);
+      letter-spacing: 0.08em;
+      text-transform: uppercase;
+      margin-bottom: 0.4rem;
+    }
+
+    input, textarea, select {
+      width: 100%;
+      background: var(--surface2);
+      border: 1px solid var(--border);
+      border-radius: 6px;
+      color: var(--text);
+      font-family: 'DM Mono', monospace;
+      font-size: 0.8rem;
+      padding: 0.6rem 0.8rem;
+      outline: none;
+      transition: border-color 0.15s;
+    }
+
+    input:focus, textarea:focus, select:focus {
+      border-color: var(--accent);
+    }
+
+    textarea { resize: vertical; min-height: 80px; }
+
+    select option { background: var(--surface2); }
+
+    .modal-actions {
+      display: flex;
+      gap: 0.75rem;
+      justify-content: flex-end;
+      margin-top: 1.5rem;
+    }
+
+    .toast {
+      position: fixed;
+      bottom: 2rem;
+      right: 2rem;
+      background: var(--surface2);
+      border: 1px solid var(--accent);
+      border-radius: 8px;
+      padding: 0.75rem 1.25rem;
+      font-size: 0.75rem;
+      color: var(--text);
+      z-index: 200;
+      animation: toastIn 0.3s ease;
+      display: none;
+    }
+
+    .toast.show { display: block; }
+
+    @keyframes toastIn {
+      from { opacity: 0; transform: translateY(10px); }
+      to { opacity: 1; transform: translateY(0); }
+    }
+
+    .loading {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      padding: 3rem;
+      color: var(--muted);
+      font-size: 0.75rem;
+      gap: 0.5rem;
+    }
+
+    .spinner {
+      width: 16px; height: 16px;
+      border: 2px solid var(--border);
+      border-top-color: var(--accent);
+      border-radius: 50%;
+      animation: spin 0.6s linear infinite;
+    }
+
+    @keyframes spin { to { transform: rotate(360deg); } }
+  </style>
+</head>
+<body>
+
+<header>
+  <div class="logo">
+    <div class="logo-dot"></div>
+    TaskFlow
+  </div>
+  <div class="header-right">
+    <div class="status-badge">
+      <div class="status-dot"></div>
+      LIVE
+    </div>
+    <button class="btn btn-primary" onclick="openModal()">+ New Task</button>
+  </div>
+</header>
+
+<main>
+  <div class="board-header">
+    <div class="board-title">Sprint <span>#01</span></div>
+    <button class="btn btn-ghost" onclick="loadTasks()">↺ Refresh</button>
+  </div>
+
+  <div class="stats-bar">
+    <div class="stat">
+      <div class="stat-value" id="stat-total">—</div>
+      <div class="stat-label">Total Tasks</div>
+    </div>
+    <div class="stat">
+      <div class="stat-value" style="color:var(--todo)" id="stat-todo">—</div>
+      <div class="stat-label">To Do</div>
+    </div>
+    <div class="stat">
+      <div class="stat-value" style="color:var(--inprog)" id="stat-inprog">—</div>
+      <div class="stat-label">In Progress</div>
+    </div>
+    <div class="stat">
+      <div class="stat-value" style="color:var(--done)" id="stat-done">—</div>
+      <div class="stat-label">Done</div>
+    </div>
+  </div>
+
+  <div class="board">
+    <div class="column col-todo">
+      <div class="column-header">
+        <div class="column-title">
+          <div class="col-indicator"></div>
+          To Do
+        </div>
+        <span class="col-count" id="count-todo">0</span>
+      </div>
+      <div class="cards" id="col-todo">
+        <div class="loading"><div class="spinner"></div> Loading...</div>
+      </div>
+    </div>
+
+    <div class="column col-inprog">
+      <div class="column-header">
+        <div class="column-title">
+          <div class="col-indicator"></div>
+          In Progress
+        </div>
+        <span class="col-count" id="count-inprog">0</span>
+      </div>
+      <div class="cards" id="col-inprog">
+        <div class="loading"><div class="spinner"></div> Loading...</div>
+      </div>
+    </div>
+
+    <div class="column col-done">
+      <div class="column-header">
+        <div class="column-title">
+          <div class="col-indicator"></div>
+          Done
+        </div>
+        <span class="col-count" id="count-done">0</span>
+      </div>
+      <div class="cards" id="col-done">
+        <div class="loading"><div class="spinner"></div> Loading...</div>
+      </div>
+    </div>
+  </div>
+</main>
+
+<!-- New Task Modal -->
+<div class="modal-overlay" id="modal">
+  <div class="modal">
+    <div class="modal-title">New Task</div>
+    <div class="form-group">
+      <label>Title</label>
+      <input type="text" id="input-title" placeholder="Task title..." />
+    </div>
+    <div class="form-group">
+      <label>Description</label>
+      <textarea id="input-desc" placeholder="What needs to be done?"></textarea>
+    </div>
+    <div class="form-group">
+      <label>Priority</label>
+      <select id="input-priority">
+        <option value="low">Low</option>
+        <option value="medium" selected>Medium</option>
+        <option value="high">High</option>
+      </select>
+    </div>
+    <div class="modal-actions">
+      <button class="btn btn-ghost" onclick="closeModal()">Cancel</button>
+      <button class="btn btn-primary" onclick="createTask()">Create Task</button>
+    </div>
+  </div>
+</div>
+
+<div class="toast" id="toast"></div>
+
+<script>
+  const API = '/api/tasks';
+
+  function showToast(msg) {
+    const t = document.getElementById('toast');
+    t.textContent = msg;
+    t.classList.add('show');
+    setTimeout(() => t.classList.remove('show'), 3000);
+  }
+
+  function openModal() { document.getElementById('modal').classList.add('open'); }
+  function closeModal() { document.getElementById('modal').classList.remove('open'); }
+
+  document.getElementById('modal').addEventListener('click', (e) => {
+    if (e.target.id === 'modal') closeModal();
+  });
+
+  function priorityClass(p) {
+    if (p === 'high') return 'priority-high';
+    if (p === 'medium') return 'priority-medium';
+    return 'priority-low';
+  }
+
+  function renderCard(task) {
+    return `
+      <div class="card" onclick="deleteTask('${task.id}')">
+        <div class="card-title">${task.title}</div>
+        ${task.description ? `<div class="card-desc">${task.description}</div>` : ''}
+        <div class="card-footer">
+          <span class="priority ${priorityClass(task.priority)}">${task.priority || 'medium'}</span>
+          <span class="card-id">#${task.id.slice(0,8)}</span>
+        </div>
+      </div>`;
+  }
+
+  async function loadTasks() {
+    try {
+      const res = await fetch(API);
+      const json = await res.json();
+      const tasks = json.data || [];
+
+      const todo = tasks.filter(t => t.status === 'todo');
+      const inprog = tasks.filter(t => t.status === 'in_progress');
+      const done = tasks.filter(t => t.status === 'done');
+
+      document.getElementById('col-todo').innerHTML = todo.length
+        ? todo.map(renderCard).join('')
+        : '<div class="empty-state"><div class="empty-icon">○</div>No tasks yet</div>';
+
+      document.getElementById('col-inprog').innerHTML = inprog.length
+        ? inprog.map(renderCard).join('')
+        : '<div class="empty-state"><div class="empty-icon">○</div>Nothing in progress</div>';
+
+      document.getElementById('col-done').innerHTML = done.length
+        ? done.map(renderCard).join('')
+        : '<div class="empty-state"><div class="empty-icon">○</div>Nothing completed</div>';
+
+      document.getElementById('count-todo').textContent = todo.length;
+      document.getElementById('count-inprog').textContent = inprog.length;
+      document.getElementById('count-done').textContent = done.length;
+      document.getElementById('stat-total').textContent = tasks.length;
+      document.getElementById('stat-todo').textContent = todo.length;
+      document.getElementById('stat-inprog').textContent = inprog.length;
+      document.getElementById('stat-done').textContent = done.length;
+    } catch (e) {
+      showToast('Failed to load tasks');
+    }
+  }
+
+  async function createTask() {
+    const title = document.getElementById('input-title').value.trim();
+    if (!title) { showToast('Title is required'); return; }
+
+    try {
+      await fetch(API, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          title,
+          description: document.getElementById('input-desc').value,
+          priority: document.getElementById('input-priority').value,
+          status: 'todo'
+        })
+      });
+      closeModal();
+      document.getElementById('input-title').value = '';
+      document.getElementById('input-desc').value = '';
+      showToast('Task created ✓');
+      loadTasks();
+    } catch (e) {
+      showToast('Failed to create task');
+    }
+  }
+
+  async function deleteTask(id) {
+    if (!confirm('Delete this task?')) return;
+    try {
+      await fetch(`${API}/${id}`, { method: 'DELETE' });
+      showToast('Task deleted');
+      loadTasks();
+    } catch (e) {
+      showToast('Failed to delete task');
+    }
+  }
+
+  loadTasks();
+</script>
+</body>
+</html>
