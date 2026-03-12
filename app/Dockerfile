@@ -48,8 +48,8 @@ COPY --from=deps --chown=nodeuser:nodejs /app/node_modules ./node_modules
 COPY --chown=nodeuser:nodejs . .
 
 # Drop write permissions on app directory
-RUN chmod -R 550 /app && \
-    chmod -R 770 /app/node_modules
+RUN chmod -R 755 /app && \
+    chmod -R 755 /app/node_modules
 
 USER nodeuser
 
