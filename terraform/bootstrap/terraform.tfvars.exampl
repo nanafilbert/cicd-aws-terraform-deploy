@@ -1,0 +1,11 @@
+# Copy this file to terraform.tfvars and fill in your values
+# terraform.tfvars is gitignored — never commit it
+
+aws_region        = "us-east-1"
+project_name      = "cicd-aws-terraform-deploy"
+github_repo       = "nanafilbert/cicd-aws-terraform-deploy"
+state_bucket_name = "cicd-aws-terraform-deploy-tfstate-filbert"
+lock_table_name   = "terraform-state-lock"
+
+# Set to false if you already have a GitHub OIDC provider in your AWS account
+create_oidc_provider = true
