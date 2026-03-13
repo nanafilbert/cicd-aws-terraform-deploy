@@ -15,7 +15,7 @@ env:
   NODE_VERSION: "20"
   TERRAFORM_VERSION: "1.7.0"
 
-# Prevent concurrent deploys to same environment.
+# Prevent concurrent deploys to same environment
 concurrency:
   group: ${{ github.workflow }}-${{ github.ref }}
   cancel-in-progress: false
@@ -25,6 +25,7 @@ jobs:
   lint:
     name: 🔍 Lint
     runs-on: ubuntu-latest
+    if: github.event.inputs.action == 'deploy'
     steps:
       - uses: actions/checkout@v4
 
@@ -46,6 +47,7 @@ jobs:
   test:
     name: 🧪 Test
     runs-on: ubuntu-latest
+    if: github.event.inputs.action == 'deploy'
     steps:
       - uses: actions/checkout@v4
 
@@ -80,6 +82,7 @@ jobs:
   security:
     name: 🔐 Security Scan
     runs-on: ubuntu-latest
+    if: github.event.inputs.action == 'deploy'
     steps:
       - uses: actions/checkout@v4
 
@@ -97,7 +100,7 @@ jobs:
     name: 🐳 Build & Push
     runs-on: ubuntu-latest
     needs: [lint, test, security]
-    if: github.ref == 'refs/heads/main' || github.ref == 'refs/heads/develop'
+    if: github.event.inputs.action == 'deploy'
 
     outputs:
       image_tag: ${{ steps.meta.outputs.version }}
@@ -157,7 +160,7 @@ jobs:
     name: 📋 Terraform Plan
     runs-on: ubuntu-latest
     needs: build
-    if: github.ref == 'refs/heads/main'
+    if: github.event.inputs.action == 'deploy'
     environment: production-plan
     permissions:
       id-token: write
@@ -235,7 +238,7 @@ jobs:
     name: 🚀 Deploy
     runs-on: ubuntu-latest
     needs: [build, plan]
-    if: github.ref == 'refs/heads/main'
+    if: github.event.inputs.action == 'deploy'
     environment: production
     permissions:
       id-token: write
@@ -272,8 +275,9 @@ jobs:
         id: output
         working-directory: terraform/envs/prod
         run: |
-          echo "app_url=$(terraform output -raw app_url)" >> $GITHUB_OUTPUT
-          echo "health_url=$(terraform output -raw health_check_url)" >> $GITHUB_OUTPUT
+          ALB_DNS=$(terraform output -raw alb_dns_name)
+          echo "app_url=http://$ALB_DNS" >> $GITHUB_OUTPUT
+          echo "health_url=http://$ALB_DNS/health/ready" >> $GITHUB_OUTPUT
 
       - name: Smoke test — wait for healthy response
         run: |
@@ -294,7 +298,7 @@ jobs:
   destroy:
     name: 💣 Terraform Destroy
     runs-on: ubuntu-latest
-    if: github.event_name == 'workflow_dispatch' && github.event.inputs.action == 'destroy'
+    if: github.event.inputs.action == 'destroy'
     permissions:
       id-token: write
       contents: read
@@ -330,7 +334,7 @@ jobs:
     name: 📊 Summary
     runs-on: ubuntu-latest
     needs: [lint, test, security, build, deploy]
-    if: always()
+    if: always() && github.event.inputs.action == 'deploy'
     steps:
       - name: Write summary
         run: |
