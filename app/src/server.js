@@ -14,8 +14,19 @@ const { errorHandler, notFound } = require("./middleware/errorHandler");
 const app = express();
 
 // ── Security headers ───────────────────────────────────────────
-app.use(helmet());
-app.disable("x-powered-by");
+app.use(helmet({
+  contentSecurityPolicy: {
+    directives: {
+      defaultSrc: ["'self'"],
+      scriptSrc: ["'self'", "'unsafe-inline'"],
+      scriptSrcAttr: ["'unsafe-inline'"],
+      styleSrc: ["'self'", "'unsafe-inline'", "https://fonts.googleapis.com"],
+      fontSrc: ["'self'", "https://fonts.gstatic.com"],
+      imgSrc: ["'self'", "data:"],
+      connectSrc: ["'self'"],
+    },
+  },
+}));
 
 // ── CORS ───────────────────────────────────────────────────────
 const allowedOrigins = process.env.ALLOWED_ORIGINS

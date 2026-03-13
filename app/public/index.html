@@ -31,7 +31,6 @@
       overflow-x: hidden;
     }
 
-    /* Background grid */
     body::before {
       content: '';
       position: fixed;
@@ -161,9 +160,7 @@
       letter-spacing: -0.03em;
     }
 
-    .board-title span {
-      color: var(--accent);
-    }
+    .board-title span { color: var(--accent); }
 
     .stats-bar {
       display: flex;
@@ -244,11 +241,7 @@
       gap: 0.5rem;
     }
 
-    .col-indicator {
-      width: 8px; height: 8px;
-      border-radius: 50%;
-    }
-
+    .col-indicator { width: 8px; height: 8px; border-radius: 50%; }
     .col-todo .col-indicator { background: var(--todo); }
     .col-inprog .col-indicator { background: var(--inprog); }
     .col-done .col-indicator { background: var(--done); }
@@ -332,11 +325,7 @@
     .priority-medium { background: rgba(249,202,36,0.15); color: var(--inprog); }
     .priority-low { background: rgba(67,233,123,0.15); color: var(--done); }
 
-    .card-id {
-      font-size: 0.6rem;
-      color: var(--muted);
-      font-family: 'DM Mono', monospace;
-    }
+    .card-id { font-size: 0.6rem; color: var(--muted); }
 
     .empty-state {
       display: flex;
@@ -353,7 +342,6 @@
 
     .empty-icon { font-size: 1.5rem; opacity: 0.3; }
 
-    /* Modal */
     .modal-overlay {
       display: none;
       position: fixed;
@@ -389,9 +377,7 @@
       margin-bottom: 1.5rem;
     }
 
-    .form-group {
-      margin-bottom: 1rem;
-    }
+    .form-group { margin-bottom: 1rem; }
 
     label {
       display: block;
@@ -415,12 +401,8 @@
       transition: border-color 0.15s;
     }
 
-    input:focus, textarea:focus, select:focus {
-      border-color: var(--accent);
-    }
-
+    input:focus, textarea:focus, select:focus { border-color: var(--accent); }
     textarea { resize: vertical; min-height: 80px; }
-
     select option { background: var(--surface2); }
 
     .modal-actions {
@@ -441,15 +423,15 @@
       font-size: 0.75rem;
       color: var(--text);
       z-index: 200;
-      animation: toastIn 0.3s ease;
-      display: none;
+      opacity: 0;
+      transform: translateY(10px);
+      transition: all 0.3s ease;
+      pointer-events: none;
     }
 
-    .toast.show { display: block; }
-
-    @keyframes toastIn {
-      from { opacity: 0; transform: translateY(10px); }
-      to { opacity: 1; transform: translateY(0); }
+    .toast.show {
+      opacity: 1;
+      transform: translateY(0);
     }
 
     .loading {
@@ -471,6 +453,10 @@
     }
 
     @keyframes spin { to { transform: rotate(360deg); } }
+
+    .stat-todo { color: var(--todo); }
+    .stat-inprog { color: var(--inprog); }
+    .stat-done { color: var(--done); }
   </style>
 </head>
 <body>
@@ -485,14 +471,14 @@
       <div class="status-dot"></div>
       LIVE
     </div>
-    <button class="btn btn-primary" onclick="openModal()">+ New Task</button>
+    <button class="btn btn-primary" id="btn-new">+ New Task</button>
   </div>
 </header>
 
 <main>
   <div class="board-header">
     <div class="board-title">Sprint <span>#01</span></div>
-    <button class="btn btn-ghost" onclick="loadTasks()">↺ Refresh</button>
+    <button class="btn btn-ghost" id="btn-refresh">↺ Refresh</button>
   </div>
 
   <div class="stats-bar">
@@ -501,15 +487,15 @@
       <div class="stat-label">Total Tasks</div>
     </div>
     <div class="stat">
-      <div class="stat-value" style="color:var(--todo)" id="stat-todo">—</div>
+      <div class="stat-value stat-todo" id="stat-todo">—</div>
       <div class="stat-label">To Do</div>
     </div>
     <div class="stat">
-      <div class="stat-value" style="color:var(--inprog)" id="stat-inprog">—</div>
+      <div class="stat-value stat-inprog" id="stat-inprog">—</div>
       <div class="stat-label">In Progress</div>
     </div>
     <div class="stat">
-      <div class="stat-value" style="color:var(--done)" id="stat-done">—</div>
+      <div class="stat-value stat-done" id="stat-done">—</div>
       <div class="stat-label">Done</div>
     </div>
   </div>
@@ -556,29 +542,36 @@
   </div>
 </main>
 
-<!-- New Task Modal -->
 <div class="modal-overlay" id="modal">
   <div class="modal">
     <div class="modal-title">New Task</div>
     <div class="form-group">
-      <label>Title</label>
+      <label for="input-title">Title</label>
       <input type="text" id="input-title" placeholder="Task title..." />
     </div>
     <div class="form-group">
-      <label>Description</label>
+      <label for="input-desc">Description</label>
       <textarea id="input-desc" placeholder="What needs to be done?"></textarea>
     </div>
     <div class="form-group">
-      <label>Priority</label>
+      <label for="input-priority">Priority</label>
       <select id="input-priority">
         <option value="low">Low</option>
         <option value="medium" selected>Medium</option>
         <option value="high">High</option>
       </select>
     </div>
+    <div class="form-group">
+      <label for="input-status">Status</label>
+      <select id="input-status">
+        <option value="todo" selected>To Do</option>
+        <option value="in_progress">In Progress</option>
+        <option value="done">Done</option>
+      </select>
+    </div>
     <div class="modal-actions">
-      <button class="btn btn-ghost" onclick="closeModal()">Cancel</button>
-      <button class="btn btn-primary" onclick="createTask()">Create Task</button>
+      <button class="btn btn-ghost" id="btn-cancel">Cancel</button>
+      <button class="btn btn-primary" id="btn-create">Create Task</button>
     </div>
   </div>
 </div>
@@ -595,12 +588,18 @@
     setTimeout(() => t.classList.remove('show'), 3000);
   }
 
-  function openModal() { document.getElementById('modal').classList.add('open'); }
-  function closeModal() { document.getElementById('modal').classList.remove('open'); }
+  function openModal() {
+    document.getElementById('modal').classList.add('open');
+    document.getElementById('input-title').focus();
+  }
 
-  document.getElementById('modal').addEventListener('click', (e) => {
-    if (e.target.id === 'modal') closeModal();
-  });
+  function closeModal() {
+    document.getElementById('modal').classList.remove('open');
+    document.getElementById('input-title').value = '';
+    document.getElementById('input-desc').value = '';
+    document.getElementById('input-priority').value = 'medium';
+    document.getElementById('input-status').value = 'todo';
+  }
 
   function priorityClass(p) {
     if (p === 'high') return 'priority-high';
@@ -609,15 +608,18 @@
   }
 
   function renderCard(task) {
-    return `
-      <div class="card" onclick="deleteTask('${task.id}')">
-        <div class="card-title">${task.title}</div>
-        ${task.description ? `<div class="card-desc">${task.description}</div>` : ''}
-        <div class="card-footer">
-          <span class="priority ${priorityClass(task.priority)}">${task.priority || 'medium'}</span>
-          <span class="card-id">#${task.id.slice(0,8)}</span>
-        </div>
+    const div = document.createElement('div');
+    div.className = 'card';
+    div.dataset.id = task.id;
+    div.innerHTML = `
+      <div class="card-title">${task.title}</div>
+      ${task.description ? `<div class="card-desc">${task.description}</div>` : ''}
+      <div class="card-footer">
+        <span class="priority ${priorityClass(task.priority)}">${task.priority || 'medium'}</span>
+        <span class="card-id">#${task.id.slice(0, 8)}</span>
       </div>`;
+    div.addEventListener('click', () => deleteTask(task.id));
+    return div;
   }
 
   async function loadTasks() {
@@ -630,21 +632,22 @@
       const inprog = tasks.filter(t => t.status === 'in_progress');
       const done = tasks.filter(t => t.status === 'done');
 
-      document.getElementById('col-todo').innerHTML = todo.length
-        ? todo.map(renderCard).join('')
-        : '<div class="empty-state"><div class="empty-icon">○</div>No tasks yet</div>';
+      function populate(colId, countId, items) {
+        const col = document.getElementById(colId);
+        const count = document.getElementById(countId);
+        col.innerHTML = '';
+        count.textContent = items.length;
+        if (items.length === 0) {
+          col.innerHTML = '<div class="empty-state"><div class="empty-icon">○</div>Nothing here</div>';
+        } else {
+          items.forEach(t => col.appendChild(renderCard(t)));
+        }
+      }
 
-      document.getElementById('col-inprog').innerHTML = inprog.length
-        ? inprog.map(renderCard).join('')
-        : '<div class="empty-state"><div class="empty-icon">○</div>Nothing in progress</div>';
+      populate('col-todo', 'count-todo', todo);
+      populate('col-inprog', 'count-inprog', inprog);
+      populate('col-done', 'count-done', done);
 
-      document.getElementById('col-done').innerHTML = done.length
-        ? done.map(renderCard).join('')
-        : '<div class="empty-state"><div class="empty-icon">○</div>Nothing completed</div>';
-
-      document.getElementById('count-todo').textContent = todo.length;
-      document.getElementById('count-inprog').textContent = inprog.length;
-      document.getElementById('count-done').textContent = done.length;
       document.getElementById('stat-total').textContent = tasks.length;
       document.getElementById('stat-todo').textContent = todo.length;
       document.getElementById('stat-inprog').textContent = inprog.length;
@@ -659,19 +662,19 @@
     if (!title) { showToast('Title is required'); return; }
 
     try {
-      await fetch(API, {
+      const res = await fetch(API, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           title,
           description: document.getElementById('input-desc').value,
           priority: document.getElementById('input-priority').value,
-          status: 'todo'
+          status: document.getElementById('input-status').value,
         })
       });
+
+      if (!res.ok) throw new Error('Failed');
       closeModal();
-      document.getElementById('input-title').value = '';
-      document.getElementById('input-desc').value = '';
       showToast('Task created ✓');
       loadTasks();
     } catch (e) {
@@ -689,6 +692,20 @@
       showToast('Failed to delete task');
     }
   }
+
+  // Event listeners — no inline handlers
+  document.getElementById('btn-new').addEventListener('click', openModal);
+  document.getElementById('btn-refresh').addEventListener('click', loadTasks);
+  document.getElementById('btn-cancel').addEventListener('click', closeModal);
+  document.getElementById('btn-create').addEventListener('click', createTask);
+
+  document.getElementById('modal').addEventListener('click', function(e) {
+    if (e.target === this) closeModal();
+  });
+
+  document.addEventListener('keydown', function(e) {
+    if (e.key === 'Escape') closeModal();
+  });
 
   loadTasks();
 </script>
