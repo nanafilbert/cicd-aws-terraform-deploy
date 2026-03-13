@@ -15,14 +15,14 @@ services:
     container_name: prd-app
     restart: unless-stopped
     expose:
-      - "3000:3000"
+      - "3000"
     environment:
       NODE_ENV: production
       PORT: 3000
       APP_VERSION: ${APP_VERSION:-local}
       LOG_LEVEL: ${LOG_LEVEL:-info}
     healthcheck:
-      test: ["CMD", "wget", "-qO-", "http://localhost:3000/health/ready"]
+      test: ["CMD", "node", "-e", "require('http').get('http://127.0.0.1:3000/health/ready', (r) => process.exit(r.statusCode === 200 ? 0 : 1)).on('error', () => process.exit(1))"]
       interval: 30s
       timeout: 10s
       retries: 5
@@ -42,7 +42,6 @@ services:
     ports:
       - "80:80"
     volumes:
-      - ./nginx/nginx.conf:/etc/nginx/nginx.conf:ro
       - ./nginx/conf.d:/etc/nginx/conf.d:ro
     depends_on:
       app:
