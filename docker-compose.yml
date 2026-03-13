@@ -15,7 +15,7 @@ services:
     container_name: prd-app
     restart: unless-stopped
     expose:
-      - "3000"
+      - "3000:3000"
     environment:
       NODE_ENV: production
       PORT: 3000
@@ -24,9 +24,9 @@ services:
     healthcheck:
       test: ["CMD", "wget", "-qO-", "http://localhost:3000/health/ready"]
       interval: 30s
-      timeout: 5s
-      retries: 3
-      start_period: 15s
+      timeout: 10s
+      retries: 5
+      start_period: 40s
     networks:
       - app-net
     logging:
