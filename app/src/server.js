@@ -15,6 +15,7 @@ const app = express();
 
 // ── Security headers ───────────────────────────────────────────
 app.use(helmet({
+  strictTransportSecurity: false,  // disable HSTS — no HTTPS on ALB
   contentSecurityPolicy: {
     directives: {
       defaultSrc: ["'self'"],
