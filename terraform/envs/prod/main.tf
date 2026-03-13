@@ -63,7 +63,7 @@ module "compute" {
   min_size           = 1
   max_size           = 3
   desired_capacity   = 1
-  certificate_arn = "arn:aws:acm:us-east-1:234506497205:certificate/0311de9d-fc07-4c96-9715-b4c04a2e0d48"
+  certificate_arn    = "arn:aws:acm:us-east-1:234506497205:certificate/0311de9d-fc07-4c96-9715-b4c04a2e0d48"
 }
 
 
