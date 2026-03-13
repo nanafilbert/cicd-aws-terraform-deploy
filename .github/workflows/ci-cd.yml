@@ -271,6 +271,32 @@ jobs:
         working-directory: terraform/envs/prod
         run: terraform apply -auto-approve tfplan
 
+
+      - name: Trigger ASG instance refresh
+        run: |
+          ASG_NAME=$(aws autoscaling describe-auto-scaling-groups \
+           --region ${{ secrets.AWS_REGION }} \
+           --query "AutoScalingGroups[?contains(AutoScalingGroupName,'cicd')].AutoScalingGroupName" \
+           --output text)
+    
+          aws autoscaling start-instance-refresh \
+           --region ${{ secrets.AWS_REGION }} \
+           --auto-scaling-group-name $ASG_NAME \
+           --preferences '{"MinHealthyPercentage": 50, "InstanceWarmup": 60}'
+    
+          echo "Waiting for instance refresh to complete..."
+          while true; do
+           STATUS=$(aws autoscaling describe-instance-refreshes \
+             --region ${{ secrets.AWS_REGION }} \
+             --auto-scaling-group-name $ASG_NAME \
+             --query "InstanceRefreshes[0].Status" \
+             --output text)
+           echo "Refresh status: $STATUS"
+           if [ "$STATUS" = "Successful" ]; then exit 0; fi
+           if [ "$STATUS" = "Failed" ] || [ "$STATUS" = "Cancelled" ]; then exit 1; fi
+           sleep 20
+          done
+
       - name: Get deployment URL
         id: output
         working-directory: terraform/envs/prod
