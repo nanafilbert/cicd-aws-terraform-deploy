@@ -17,10 +17,10 @@ provider "aws" {
   region = var.aws_region
   default_tags {
     tags = {
-      Project     = "production-ready-devops"
+      Project     = "cicd-aws-terraform-deploy"
       Environment = var.environment
       ManagedBy   = "terraform"
-      Repository  = "github.com/${var.github_owner}/production-ready-devops"
+      Repository  = "github.com/${var.github_owner}/cicd-aws-terraform-deploy"
     }
   }
 }
@@ -63,4 +63,7 @@ module "compute" {
   min_size           = 1
   max_size           = 3
   desired_capacity   = 1
+  certificate_arn = "arn:aws:acm:us-east-1:234506497205:certificate/0311de9d-fc07-4c96-9715-b4c04a2e0d48"
 }
+
+

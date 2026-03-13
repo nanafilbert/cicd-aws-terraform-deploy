@@ -9,8 +9,9 @@ services:
   app:
     build:
       context: ./app
+      dockerfile: Dockerfile
       target: production
-    image: production-ready-devops:latest
+    image: cicd-aws-terraform-deploy:latest
     container_name: prd-app
     restart: unless-stopped
     expose:
