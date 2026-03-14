@@ -8,9 +8,11 @@
 ![Coverage](https://img.shields.io/badge/coverage-80%25%2B-brightgreen)
 ![License](https://img.shields.io/badge/license-MIT-blue)
 
-A **production-grade DevOps project** demonstrating end-to-end software delivery: a containerised Node.js REST API, an 8-stage CI/CD pipeline with OIDC authentication and security scanning, and fully modularised AWS infrastructure provisioned with Terraform.
+A **production-grade DevOps project** demonstrating end-to-end software delivery: a containerised Node.js REST API, an 8-stage CI/CD pipeline with OIDC authentication and security scanning, fully modularised AWS infrastructure provisioned with Terraform, HTTPS via ACM, and a full local observability stack with Prometheus and Grafana.
 
 Built to reflect real-world engineering standards — not a tutorial.
+
+🌐 **Live:** [https://tasks.therealblessing.com](https://tasks.therealblessing.com)
 
 ---
 
@@ -26,23 +28,34 @@ Built to reflect real-world engineering standards — not a tutorial.
                          ▼
                    Docker Hub
                          │
-                         │ terraform apply
+                         │ terraform apply + ASG instance refresh
                          ▼
 ┌─────────────────── AWS (us-east-1) ────────────────────────────┐
 │                                                                 │
-│   Internet → ALB → Auto Scaling Group (EC2 t3.small)           │
-│              │          │                                       │
-│              │     ┌────┴─────┐                                 │
-│              │     │  Docker  │  Node.js API (port 3000)        │
-│              │     │ Container│  + Winston structured logging   │
-│              │     └──────────┘  + Graceful shutdown (SIGTERM)  │
-│              │                   + Rate limiting                 │
-│         Health checks            + Helmet security headers      │
-│         (/health/ready)          + Kanban dashboard UI          │
+│   Internet → Route53/Namecheap DNS → ALB (HTTPS:443)           │
+│              ACM SSL Certificate    │                           │
+│              HTTP → HTTPS redirect  │                           │
+│                                     ▼                           │
+│                          Auto Scaling Group (EC2 t3.small)      │
+│                               │                                 │
+│                          ┌────┴─────┐                           │
+│                          │  Docker  │  Node.js API (port 3000)  │
+│                          │ Container│  + Winston logging        │
+│                          └──────────┘  + Graceful shutdown      │
+│                                        + Rate limiting          │
+│                          Health checks + Helmet security headers│
+│                          (/health/ready)+ Kanban dashboard UI   │
+│                                        + Prometheus metrics     │
 │                                                                 │
 │   Remote State: S3 (encrypted + versioned) + DynamoDB lock     │
 │   IAM: Least-privilege role + SSM Session Manager (no bastion) │
 │   EC2: IMDSv2 required, encrypted EBS (gp3, 30GB)             │
+└─────────────────────────────────────────────────────────────────┘
+
+┌─────────────── Local Observability Stack ───────────────────────┐
+│                                                                 │
+│   App → Prometheus (scrapes /health/metrics) → Grafana          │
+│   Nginx reverse proxy + Apache2 disabled                        │
 └─────────────────────────────────────────────────────────────────┘
 ```
 
@@ -55,16 +68,18 @@ Built to reflect real-world engineering standards — not a tutorial.
 | **Application** | Node.js 20, Express | REST API + Kanban UI |
 | **Security** | Helmet, express-rate-limit, CORS | HTTP hardening |
 | **Logging** | Winston (structured JSON) | Observability |
+| **Metrics** | prom-client | Prometheus metrics endpoint |
 | **Testing** | Jest + Supertest (19 tests) | Unit & integration tests |
 | **Containerisation** | Docker (multi-stage, Alpine 3.21) | Reproducible builds |
 | **Reverse Proxy** | Nginx | Load balancing, TLS termination |
-| **Monitoring** | Prometheus + Grafana | Metrics & alerting |
+| **Monitoring** | Prometheus + Grafana | Real-time metrics & dashboards |
 | **CI/CD** | GitHub Actions (8 stages) | Automated delivery |
 | **Auth** | OIDC (no static AWS keys) | Keyless AWS authentication |
 | **Security Scanning** | Trivy | CVE scanning (filesystem + image) |
 | **IaC** | Terraform 1.7 (modular) | AWS infrastructure |
 | **Compute** | AWS EC2 t3.small + ASG | Scalable compute |
-| **Load Balancing** | AWS ALB | Health-check routing |
+| **Load Balancing** | AWS ALB (HTTP + HTTPS) | Health-check routing + SSL termination |
+| **SSL** | AWS ACM + Namecheap DNS | Free managed TLS certificate |
 | **State Management** | S3 + DynamoDB | Remote Terraform state |
 | **Access** | AWS SSM Session Manager | No SSH bastion needed |
 
@@ -82,7 +97,7 @@ Three stages: `deps` (prod dependencies only), `test` (runs Jest inside the buil
 `node:20-alpine` floats to the latest Alpine release. Pinning to `alpine3.21` ensures a reproducible, auditable base image where patched packages (zlib, OpenSSL) are known quantities.
 
 **Why Auto Scaling Group instead of a single EC2?**
-The ASG with instance refresh enables zero-downtime rolling deployments — new instances must pass ALB health checks before old ones are terminated.
+The ASG with instance refresh enables zero-downtime rolling deployments — new instances must pass ALB health checks before old ones are terminated. The pipeline explicitly triggers an instance refresh after every deploy to pull the latest Docker image.
 
 **Why modular Terraform?**
 `networking`, `security`, and `compute` are independent reusable modules. Each can be versioned and tested in isolation — mirrors how infrastructure scales in real teams.
@@ -93,6 +108,12 @@ IMDSv1 is vulnerable to SSRF attacks that can leak IAM credentials from the meta
 **Why a bootstrap folder in Terraform?**
 The OIDC provider, IAM role, S3 bucket, and DynamoDB table are one-time prerequisites that must exist before the pipeline can run. Keeping them in a separate `bootstrap/` module makes the chicken-and-egg relationship explicit and auditable.
 
+**Why ACM for SSL instead of self-signed certs?**
+ACM provides free, auto-renewing certificates managed by AWS. Combined with a CNAME record in Namecheap pointing to the ALB, this gives a fully trusted HTTPS endpoint with zero maintenance overhead.
+
+**Why manual pipeline trigger?**
+The pipeline runs on `workflow_dispatch` only — deploy and destroy are explicit decisions. This prevents accidental deploys and gives full control over when infrastructure changes are applied.
+
 ---
 
 ## Project Structure
@@ -102,7 +123,7 @@ cicd-aws-terraform-deploy/
 ├── app/
 │   ├── src/
 │   │   ├── app.js               # Entry point + graceful shutdown (SIGTERM/SIGINT)
-│   │   ├── server.js            # Express + middleware + static file serving
+│   │   ├── server.js            # Express + middleware + Prometheus metrics
 │   │   ├── routes/
 │   │   │   ├── tasks.js         # CRUD endpoints
 │   │   │   └── health.js        # Liveness, readiness, metrics
@@ -114,14 +135,14 @@ cicd-aws-terraform-deploy/
 │   ├── tests/
 │   │   └── api.test.js          # 19 integration tests
 │   ├── public/
-│   │   └── index.html           # Kanban dashboard UI
+│   │   └── index.html           # Kanban dashboard UI (no inline handlers)
 │   ├── .eslintrc.js             # ESLint config (node + jest env)
 │   ├── Dockerfile               # Multi-stage: deps → test → production
 │   └── package.json             # npm overrides for transitive dep CVEs
 │
 ├── .github/
 │   └── workflows/
-│       └── ci-cd.yml            # 8-stage pipeline + manual destroy
+│       └── ci-cd.yml            # 8-stage pipeline + manual destroy + ASG refresh
 │
 ├── terraform/
 │   ├── bootstrap/               # One-time: OIDC provider, IAM role, S3, DynamoDB
@@ -132,15 +153,15 @@ cicd-aws-terraform-deploy/
 │   ├── modules/
 │   │   ├── networking/          # VPC, subnets, IGW, route tables
 │   │   ├── security/            # Security groups (ALB + app, least-privilege)
-│   │   └── compute/             # ALB, ASG, launch template, IAM, scaling policy
+│   │   └── compute/             # ALB, HTTPS listener, ASG, launch template, IAM
 │   └── envs/
 │       └── prod/                # Root module (wires modules + remote state backend)
 │
 ├── nginx/
 │   └── conf.d/app.conf          # Security headers, gzip, proxy config
 ├── monitoring/
-│   └── prometheus.yml           # Scrape config
-└── docker-compose.yml           # Full local stack: app + nginx + prometheus + grafana
+│   └── prometheus.yml           # Scrape config (/health/metrics)
+└── docker-compose.yml           # Local stack: app + nginx + prometheus + grafana
 ```
 
 ---
@@ -149,17 +170,18 @@ cicd-aws-terraform-deploy/
 
 ### Prerequisites
 
-- AWS account with permissions to create IAM roles, S3, DynamoDB, EC2, ALB, VPC
-- AWS CLI configured locally
+- AWS account with permissions to create IAM roles, S3, DynamoDB, EC2, ALB, VPC, ACM
+- AWS CLI configured locally (`us-east-1`)
 - Terraform 1.7+
 - Docker Hub account
 - GitHub repo with Actions enabled
+- Domain name (for HTTPS)
 
 ---
 
 ### Step 1 — Bootstrap AWS prerequisites (one-time)
 
-The bootstrap creates the OIDC provider, IAM role, S3 state bucket, and DynamoDB lock table that the pipeline depends on.
+The bootstrap creates the OIDC provider, IAM role, S3 state bucket, and DynamoDB lock table.
 
 ```bash
 cd terraform/bootstrap
@@ -169,7 +191,7 @@ cp terraform.tfvars.example terraform.tfvars
 Edit `terraform.tfvars`:
 
 ```hcl
-github_repo       = "nanafilbert/cicd-aws-terraform-deploy"
+github_repo       = "your-username/cicd-aws-terraform-deploy"
 state_bucket_name = "cicd-aws-terraform-deploy-tfstate-<yourname>"
 aws_region        = "us-east-1"
 ```
@@ -181,27 +203,51 @@ terraform init
 terraform apply
 ```
 
-Copy the `role_arn` from the output — you will need it in the next step.
+Copy the `role_arn` from the output.
 
 ---
 
 ### Step 2 — Configure GitHub Secrets
 
-Go to your repo → **Settings → Secrets and variables → Actions** and add:
+Go to repo → **Settings → Secrets and variables → Actions**:
 
 | Secret | Value |
 |--------|-------|
 | `AWS_ROLE_ARN` | ARN from bootstrap output |
 | `AWS_REGION` | `us-east-1` |
 | `DOCKERHUB_USERNAME` | Your Docker Hub username |
-| `DOCKERHUB_TOKEN` | Docker Hub access token (not your password) |
-| `TF_VAR_KEY_PAIR_NAME` | Name of an existing EC2 key pair in your AWS account |
+| `DOCKERHUB_TOKEN` | Docker Hub access token |
+| `TF_VAR_KEY_PAIR_NAME` | Name of existing EC2 key pair |
 
 ---
 
-### Step 3 — Update Terraform backend
+### Step 3 — Configure HTTPS (optional but recommended)
 
-Edit `terraform/envs/prod/main.tf` and set the correct bucket name:
+**Request an ACM certificate:**
+
+```bash
+aws acm request-certificate \
+  --region us-east-1 \
+  --domain-name tasks.yourdomain.com \
+  --validation-method DNS
+```
+
+Add the DNS validation CNAME record to your domain registrar, wait for status `ISSUED`, then add the cert ARN to `terraform/envs/prod/main.tf`:
+
+```hcl
+module "compute" {
+  ...
+  certificate_arn = "arn:aws:acm:us-east-1:<account>:certificate/<id>"
+}
+```
+
+Also add a CNAME record pointing `tasks.yourdomain.com` to the ALB DNS name.
+
+---
+
+### Step 4 — Update Terraform backend
+
+Edit `terraform/envs/prod/main.tf`:
 
 ```hcl
 backend "s3" {
@@ -215,25 +261,17 @@ backend "s3" {
 
 ---
 
-### Step 4 — Create Docker Hub repository
+### Step 5 — Deploy
 
-Create a public repository named `cicd-aws-terraform-deploy` on Docker Hub.
+Go to **GitHub → Actions → CI/CD Pipeline → Run workflow → select `deploy`**.
 
----
-
-### Step 5 — Push to main
-
-```bash
-git push origin main
-```
-
-The pipeline fires automatically. On success, Terraform outputs the ALB DNS name.
+On success the app is live at `https://tasks.yourdomain.com`.
 
 ---
 
 ### Destroy infrastructure
 
-To tear down all AWS resources go to **Actions → CI/CD Pipeline → Run workflow** and select `destroy`. No resources are left running after a destroy run.
+Go to **Actions → CI/CD Pipeline → Run workflow → select `destroy`**. All AWS resources are torn down cleanly.
 
 ---
 
@@ -245,14 +283,33 @@ To tear down all AWS resources go to **Actions → CI/CD Pipeline → Run workfl
 git clone https://github.com/nanafilbert/cicd-aws-terraform-deploy
 cd cicd-aws-terraform-deploy
 
-# Start full stack (app + nginx + prometheus + grafana)
 docker-compose up --build
 
 # Access:
-# App:        http://localhost
+# App:        http://localhost:3000
 # Prometheus: http://localhost:9090
 # Grafana:    http://localhost:3001  (admin / admin)
 ```
+
+### Setting up Grafana locally
+
+1. Open `http://localhost:3001` → login with `admin/admin`
+2. Go to **Connections → Data Sources → Add data source**
+3. Select **Prometheus** → URL: `http://prometheus:9090` → **Save & Test**
+4. Go to **Dashboards → New → Import** → enter ID `11159` → **Import**
+
+You will see real-time CPU, memory heap, event loop lag, and request metrics from your app.
+
+### Generate load to see metrics spike
+
+```bash
+for i in {1..200}; do
+  curl -s http://localhost:3000/api/tasks > /dev/null &
+done
+wait
+```
+
+Watch the Grafana graphs update live.
 
 ### Running Tests
 
@@ -261,20 +318,20 @@ cd app
 npm install
 npm test
 
-# With coverage report
+# With coverage
 npm run test:ci
 ```
 
-Coverage thresholds enforced in CI: **80% branches, functions, lines, and statements**.
+Coverage thresholds: **80% branches, functions, lines, statements**.
 
 ---
 
 ## CI/CD Pipeline
 
-Every push to `main` (excluding `README.md` changes) triggers an 8-stage pipeline:
+Triggered manually via `workflow_dispatch` — select `deploy` or `destroy`.
 
 ```
-Lint → Test → Security Scan → Build & Push → Terraform Plan → Deploy → Smoke Test → Summary
+Lint → Test → Security Scan → Build & Push → Terraform Plan → Deploy → ASG Refresh → Smoke Test → Summary
 ```
 
 | Stage | What it does |
@@ -282,16 +339,17 @@ Lint → Test → Security Scan → Build & Push → Terraform Plan → Deploy �
 | **🔍 Lint** | ESLint checks code quality |
 | **🧪 Test** | Jest runs 19 tests, coverage enforced at 80% |
 | **🔐 Security Scan** | Trivy scans dependencies — fails on HIGH/CRITICAL unfixed CVEs |
-| **🐳 Build & Push** | Multi-stage Docker build pushed to Docker Hub with SHA + branch tags, SBOM generated, image rescanned |
-| **📋 Terraform Plan** | `terraform plan` saved as artifact, posted as PR comment |
-| **🚀 Deploy** | `terraform apply` using saved plan file |
-| **✅ Smoke Test** | Polls `/health/ready` for up to 6 minutes post-deploy |
+| **🐳 Build & Push** | Multi-stage Docker build, pushed to Docker Hub, SBOM generated, image rescanned |
+| **📋 Terraform Plan** | `terraform plan` saved as artifact |
+| **🚀 Deploy** | `terraform apply` using saved plan |
+| **🔄 ASG Refresh** | Triggers rolling instance refresh — new instances pull latest image automatically |
+| **✅ Smoke Test** | Polls `https://tasks.therealblessing.com/health/ready` for up to 6 minutes |
 | **📊 Summary** | Pass/fail table written to GitHub Actions job summary |
-| **💣 Destroy** | Manual only — triggered via `workflow_dispatch` → destroy option |
+| **💣 Destroy** | Manual only — `workflow_dispatch` → destroy |
 
 ### Pipeline Authentication
 
-The pipeline uses **OIDC** — no AWS access keys stored as GitHub Secrets. GitHub Actions requests a short-lived token, assumes the IAM role via `sts:AssumeRoleWithWebIdentity`, and the token expires when the job ends.
+No AWS access keys stored anywhere. GitHub Actions uses OIDC:
 
 ```yaml
 permissions:
@@ -308,14 +366,15 @@ permissions:
 
 ## API Reference
 
-Base URL: `http://<alb-dns-name>`
+Base URL: `https://tasks.therealblessing.com`
 
 | Method | Endpoint | Description |
 |--------|----------|-------------|
 | `GET` | `/` | Kanban dashboard UI |
 | `GET` | `/health` | Liveness probe |
 | `GET` | `/health/ready` | Readiness probe (ALB health check target) |
-| `GET` | `/health/metrics` | Process + system metrics |
+| `GET` | `/health/metrics` | JSON system metrics |
+| `GET` | `/metrics` | Prometheus metrics (prom-client format) |
 | `GET` | `/api` | Endpoint manifest |
 | `GET` | `/api/tasks` | List tasks (`?status=`, `?priority=`, `?sort=`) |
 | `GET` | `/api/tasks/:id` | Get single task |
@@ -326,6 +385,32 @@ Base URL: `http://<alb-dns-name>`
 All responses follow a consistent envelope:
 - Success: `{ "data": ... }`
 - Error: `{ "error": { "message": "...", "status": 400, "details": [...] } }`
+
+---
+
+## Observability
+
+### Prometheus Metrics (local)
+
+The app exposes Prometheus-format metrics via `prom-client`:
+
+```
+# CPU usage
+app_process_cpu_user_seconds_total
+
+# Memory
+app_nodejs_heap_size_used_bytes
+
+# Event loop lag
+app_nodejs_eventloop_lag_seconds
+
+# Active handles
+app_process_open_fds
+```
+
+### Grafana Dashboard (local)
+
+Import dashboard ID `11159` for a pre-built Node.js metrics dashboard. Shows CPU, heap, event loop, and GC metrics in real time.
 
 ---
 
@@ -342,9 +427,10 @@ All responses follow a consistent envelope:
 | Encrypted EBS | gp3 volumes encrypted at rest |
 | Trivy CVE scanning | Filesystem + image scan, blocks HIGH/CRITICAL |
 | Rate limiting | express-rate-limit on all API routes |
-| Security headers | Helmet middleware |
+| Security headers | Helmet middleware (CSP, no HSTS on HTTP) |
 | State encryption | S3 server-side encryption + versioning |
 | npm overrides | Forced patched versions of transitive dependencies |
+| HTTPS | ACM certificate + ALB HTTPS listener + HTTP→HTTPS redirect |
 
 ---
 

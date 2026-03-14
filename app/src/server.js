@@ -66,8 +66,13 @@ app.use(morgan("combined", {
 app.use(express.static(path.join(__dirname, "../public")));
 
 // ── Prometheus Metrics ─────────────────────────────────────────
-const { register } = require("prom-client");
-app.get("/metrics", async (req, res) => {
+const promClient = require("prom-client");
+const { register } = promClient;
+
+// Collect default metrics (CPU, memory, event loop, GC, etc.)
+promClient.collectDefaultMetrics({ register });
+
+app.get("/health/metrics", async (req, res) => {
   res.set("Content-Type", register.contentType);
   res.send(await register.metrics());
 });
