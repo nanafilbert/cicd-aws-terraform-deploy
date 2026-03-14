@@ -65,6 +65,13 @@ app.use(morgan("combined", {
 // ── Static Frontend ────────────────────────────────────────────
 app.use(express.static(path.join(__dirname, "../public")));
 
+// ── Prometheus Metrics ─────────────────────────────────────────
+const { register } = require("prom-client");
+app.get("/metrics", async (req, res) => {
+  res.set("Content-Type", register.contentType);
+  res.send(await register.metrics());
+});
+
 // ── API Routes ─────────────────────────────────────────────────
 app.use("/health", healthRouter);
 app.use("/api/tasks", taskRouter);
