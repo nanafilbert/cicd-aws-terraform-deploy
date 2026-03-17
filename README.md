@@ -10,7 +10,7 @@
 
 A **production-grade DevOps project** demonstrating end-to-end software delivery: a containerised Node.js REST API, an 8-stage CI/CD pipeline with OIDC authentication and security scanning, fully modularised AWS infrastructure provisioned with Terraform, HTTPS via ACM, and a full local observability stack with Prometheus and Grafana.
 
-Built to reflect real-world engineering standards — not a tutorial.
+This project is designed to simulate a real-world production deployment pipeline used by modern DevOps teams.
 
 🌐 **Live:** [https://tasks.therealblessing.com](https://tasks.therealblessing.com)
 
