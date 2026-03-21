@@ -10,9 +10,29 @@
 
 A **production-grade DevOps project** demonstrating end-to-end software delivery: a containerised Node.js REST API, an 8-stage CI/CD pipeline with OIDC authentication and security scanning, fully modularised AWS infrastructure provisioned with Terraform, HTTPS via ACM, and a full local observability stack with Prometheus and Grafana.
 
-Built to reflect real-world engineering standards — not a tutorial.
+This project is designed to simulate a real-world production deployment pipeline used by modern DevOps teams.
 
 🌐 **Live:** [https://tasks.therealblessing.com](https://tasks.therealblessing.com)
+
+---
+## 🚀 What This Project Does
+
+- Deploys AWS infrastructure using Terraform (S3 backend + DynamoDB lock)
+- Runs an 8-stage CI/CD pipeline using GitHub Actions (OIDC, no AWS keys)
+- Builds and deploys a containerised Node.js app behind an ALB with HTTPS
+- Implements zero-downtime deployments using Auto Scaling Group refresh
+- Includes observability with Prometheus and Grafana
+
+---
+
+## 🔥 Production Highlights
+
+- OIDC authentication (no static AWS credentials)
+- Zero-downtime deployments via ASG instance refresh
+- Remote Terraform state with S3 + DynamoDB locking
+- Modular infrastructure design (networking, security, compute)
+- IMDSv2 enforced (SSRF protection)
+- Trivy security scanning (fails on HIGH/CRITICAL CVEs)
 
 ---
 
