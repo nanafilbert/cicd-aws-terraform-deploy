@@ -165,7 +165,9 @@ resource "aws_iam_policy" "github_actions" {
           "ec2:DescribeAccountAttributes", "ec2:DescribeNetworkInterfaces",
           "ec2:ModifyVpcAttribute", "ec2:AssociateRouteTable",
           "ec2:DisassociateRouteTable", "ec2:CreateRoute", "ec2:DeleteRoute",
-          "ec2:AttachInternetGateway", "ec2:DetachInternetGateway"
+          "ec2:AttachInternetGateway", "ec2:DetachInternetGateway",
+          "iam:ListInstanceProfilesForRole",
+          "iam:ListAttachedRolePolicies"
         ]
         Resource = "*"
       },
